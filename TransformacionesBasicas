@@ -1,0 +1,72 @@
+import pandas as pd 
+import pyodbc
+import kaggle
+
+# Reemplaza 'nombre_usuario' y 'nombre_dataset' con tus datos
+
+kaggle.api.authenticate()
+kaggle.api.dataset_download_files('mexwell/one-piece-dataset', path='./', unzip=True)
+
+# Leer los datos directamente (asumiendo formato CSV)
+df = pd.read_csv('onpiece1.csv') 
+
+# Mostrar las primeras filas
+print(df.head().to_markdown(index=False, numalign="left", stralign="left"))
+
+#Descripción de los datos
+df.info()
+
+num_filas = len(df)  # o df.shape[0]
+print(f"La tabla tiene {num_filas} filas.")
+
+# Carga de la base
+
+inpath = "URL de donde esta la base de datos en el computador"
+
+df = df.drop('Japanese Name', axis=1)  # Elimina la columna 'Japanese name'
+df.to_csv(inpath + 'onpiece1.csv', index=False)  # index=False evita guardar el índice de las filas
+df = pd.read_csv('onpiece1.csv') 
+# Mostrar las primeras filas
+print(df.head().to_markdown(index=False, numalign="left", stralign="left"))
+
+#df = df.drop('Region', axis=1)  # Elimina la columna 'departamento'
+df.to_csv(inpath + 'onpiece1.csv', index=False)  # index=False evita guardar el índice de las filas
+df = pd.read_csv('onpiece1.csv') 
+
+# Mostrar las primeras filas
+print(df.head(50).to_markdown(index=False, numalign="left", stralign="left"))
+
+# Función para limpiar y extraer las recompensas (mejorada)
+def extract_bounties(text):
+    # Eliminar etiquetas [bounty X]
+    for i in range(1, 10):  # Asumiendo que hay hasta 9 etiquetas [bounty]
+        text = text.replace(f"[bounty {i}]", "")
+
+    # Dividir por "At least" si está presente, de lo contrario, usar el texto completo
+    if "At least" in text:
+        bounties = text.split("At least")
+    else:
+        bounties = [text]  # Envolver el texto en una lista si no hay "At least"
+
+    # Eliminar espacios en blanco y comas, y convertir a números
+    bounties = [int(b.replace(",", "").strip()) for b in bounties if b.replace(",", "").strip().isdigit()]
+
+    # Devolver la última recompensa
+    return bounties[-1] if bounties else None
+
+# Aplicar la función extract_bounties
+df['Bounties'] = df['Total Bounty'].astype(str).apply(extract_bounties)
+df['Ultima Recompensa'] = df['Bounties']
+
+# Configurar Pandas para mostrar números sin notación científica
+pd.set_option('display.float_format', lambda x: '%.0f' % x)
+
+# Filtrar el DataFrame para valores mayores a 10,000 y menores o iguales a 30,000,000, y no nulos
+df.dropna(subset=['Ultima Recompensa'], inplace=True)
+df_filtered = df[(df['Ultima Recompensa'] > 10000) & (df['Ultima Recompensa'] <= 11401100000) & (pd.notnull(df['Ultima Recompensa']))]
+
+# Imprimir el resultado si hay recompensas que cumplen la condición
+if not df_filtered.empty:
+    print(df_filtered[['Official English Name', 'Ultima Recompensa']])
+else:
+    print("No hay recompensas que cumplan la condición.")
